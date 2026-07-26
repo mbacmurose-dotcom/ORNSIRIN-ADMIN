@@ -173,23 +173,6 @@ const rawBookings = [
 
 /* ============================= AUTH (Firebase Authentication) ============================= */
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAzFD4Yl_VbnH91yYnHtsIqzhjPa1tbRHw",
-  authDomain: "cmcc-web-auth.firebaseapp.com",
-  projectId: "cmcc-web-auth",
-  storageBucket: "cmcc-web-auth.firebasestorage.app",
-  messagingSenderId: "636869110080",
-  appId: "1:636869110080:web:ae569c4f3ca5cec0f032a5",
-  measurementId: "G-7X15EL341W",
-};
-firebase.initializeApp(firebaseConfig);
-
-function authenticate(email, password){
-  return firebase.auth().signInWithEmailAndPassword(email, password)
-    .then(()=>({ ok:true }))
-    .catch(()=>({ ok:false, error:"อีเมลหรือรหัสผ่านไม่ถูกต้อง" }));
-}
-
 // ค่าปัจจุบันของผู้ใช้ที่ล็อกอินอยู่จะถูกเซ็ตโดย onAuthStateChanged ด้านล่าง (ใกล้ๆ ท้ายไฟล์)
 // ซึ่งจะคง session ไว้ให้อัตโนมัติแม้รีเฟรชหน้า — ไม่ต้องเขียนจัดการ session เอง
 

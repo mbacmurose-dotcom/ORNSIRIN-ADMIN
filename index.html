@@ -216,6 +216,7 @@ const state = {
   userSearch:"", userFilter:"all",
   drawer:null, // { kind:'booking', ref } | { kind:'partner', id }
   auth:{ loggedIn:false, user:null, loading:false, error:"" },
+  mobileNavOpen:false,
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }
@@ -309,18 +310,25 @@ const NAV = [
 ];
 
 function sidebar(){
+  const open = state.mobileNavOpen;
   return `
-  <aside class="w-[236px] shrink-0 h-screen sticky top-0 flex flex-col" style="background:var(--surface);border-right:1px solid var(--border-soft)">
-    <div class="px-5 py-5 flex items-center gap-2.5" style="border-bottom:1px solid var(--border-soft)">
-      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--brand-dim)">
-        ${icon("shield-half",17,"")}
+  <div class="lg:hidden fixed inset-0 z-40" style="background:rgba(0,0,0,.55);transition:opacity .2s;${open?"":"opacity:0;pointer-events:none"}" data-close-mobile-nav></div>
+  <aside class="w-[236px] shrink-0 h-screen fixed lg:sticky top-0 left-0 z-50 flex flex-col transition-transform duration-200 ${open?"translate-x-0":"-translate-x-full"} lg:translate-x-0"
+    style="background:var(--surface);border-right:1px solid var(--border-soft)"
+    id="sidebarEl">
+    <div class="px-5 py-5 flex items-center justify-between gap-2.5" style="border-bottom:1px solid var(--border-soft)">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--brand-dim)">
+          ${icon("shield-half",17,"")}
+        </div>
+        <div>
+          <p class="disp font-semibold" style="font-size:14px;line-height:1.1">ORNSIRIN OPS</p>
+          <p style="font-size:10.5px;color:var(--ink-faint)">แผงควบคุมแอดมิน</p>
+        </div>
       </div>
-      <div>
-        <p class="disp font-semibold" style="font-size:14px;line-height:1.1">ORNSIRIN OPS</p>
-        <p style="font-size:10.5px;color:var(--ink-faint)">แผงควบคุมแอดมิน</p>
-      </div>
+      <button class="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--surface-hover);color:var(--ink-dim)" data-close-mobile-nav>${icon("x",15)}</button>
     </div>
-    <nav class="flex-1 px-3 py-4 flex flex-col gap-1">
+    <nav class="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
       ${NAV.map(n=>`
         <div class="navlink ${state.section===n.id?"active":""}" data-nav="${n.id}">
           ${icon(n.icon,16)}<span>${n.label}</span>
@@ -341,18 +349,21 @@ function topbar(){
   const titleMap = { overview:"ภาพรวมระบบ", bookings:"การจอง & บริการทั้งหมด", partners:"ผู้ให้บริการ / พาร์ทเนอร์", customers:"ผู้ใช้บริการ" };
   const now = new Date();
   return `
-  <header class="sticky top-0 z-10 flex items-center justify-between px-7 py-4" style="background:rgba(15,21,18,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border-soft)">
-    <div>
-      <h1 class="disp font-semibold" style="font-size:19px">${titleMap[state.section]}</h1>
-      <p style="font-size:12px;color:var(--ink-faint)" class="mt-0.5">${now.toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+  <header class="sticky top-0 z-20 flex items-center justify-between px-4 md:px-7 py-3.5 md:py-4 gap-3" style="background:rgba(15,21,18,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border-soft)">
+    <div class="flex items-center gap-3 min-w-0">
+      <button class="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:var(--surface-2);border:1px solid var(--border);color:var(--ink-dim)" data-open-mobile-nav>${icon("menu",16)}</button>
+      <div class="min-w-0">
+        <h1 class="disp font-semibold truncate text-[16px] md:text-[19px]">${titleMap[state.section]}</h1>
+        <p style="font-size:11px;color:var(--ink-faint)" class="mt-0.5 hidden sm:block">${now.toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+      </div>
     </div>
-    <div class="flex items-center gap-4">
-      <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:var(--brand-dim);color:var(--brand);font-size:11.5px;font-weight:600">
+    <div class="flex items-center gap-2 md:gap-4 shrink-0">
+      <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:var(--brand-dim);color:var(--brand);font-size:11.5px;font-weight:600">
         <span class="led led-brand pulse"></span> LIVE
       </div>
       <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold disp" style="background:var(--surface-2);border:1px solid var(--border);font-size:12px" title="${state.auth.user ? state.auth.user.name : ""}">${state.auth.user ? state.auth.user.name.slice(0,1) : "อ"}</div>
-        <button data-logout class="w-8 h-8 rounded-full flex items-center justify-center" style="background:var(--surface-2);border:1px solid var(--border);color:var(--ink-dim)" title="ออกจากระบบ">${icon("log-out",14)}</button>
+        <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold disp shrink-0" style="background:var(--surface-2);border:1px solid var(--border);font-size:12px" title="${state.auth.user ? state.auth.user.name : ""}">${state.auth.user ? state.auth.user.name.slice(0,1) : "อ"}</div>
+        <button data-logout class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background:var(--surface-2);border:1px solid var(--border);color:var(--ink-dim)" title="ออกจากระบบ">${icon("log-out",14)}</button>
       </div>
     </div>
   </header>`;
@@ -361,13 +372,13 @@ function topbar(){
 /* ============================= OVERVIEW SECTION ============================= */
 function kpiCard(label, value, sub, icn, t){
   return `
-  <div class="card p-5 flex flex-col gap-2">
-    <div class="flex items-center justify-between">
-      <span style="font-size:12px;color:var(--ink-faint)">${label}</span>
-      <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:${toneDim(t)};color:${tone(t)}">${icon(icn,14)}</div>
+  <div class="card p-3.5 md:p-5 flex flex-col gap-2 min-w-0">
+    <div class="flex items-center justify-between gap-2">
+      <span style="font-size:11.5px;color:var(--ink-faint)" class="truncate">${label}</span>
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${toneDim(t)};color:${tone(t)}">${icon(icn,14)}</div>
     </div>
-    <p class="disp tabnum" style="font-size:26px;font-weight:600">${value}</p>
-    <p style="font-size:11.5px;color:var(--ink-dim)">${sub}</p>
+    <p class="disp tabnum truncate" style="font-size:22px;font-weight:600">${value}</p>
+    <p style="font-size:11px;color:var(--ink-dim)" class="leading-snug">${sub}</p>
   </div>`;
 }
 
@@ -396,15 +407,15 @@ function overviewSection(){
   const liveQueue = rawBookings.filter(b=>b.status==="in_progress");
 
   return `
-  <div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
     ${kpiCard("การจองวันนี้", today.length, `${inProgress} รายการกำลังให้บริการ`, "calendar-check","blue")}
     ${kpiCard("รายได้วันนี้", fmtBaht(revToday), "ไม่รวมรายการที่ยกเลิก","banknote","brand")}
     ${kpiCard("ผู้ให้บริการพร้อมงาน", `${onDuty}/${partners.length}`, "ทุกประเภทบริการ","users-round","amber")}
     ${kpiCard("ผู้ใช้บริการทั้งหมด", totalUsers, `${users.filter(u=>u.resident).length} ลูกบ้าน · ${users.filter(u=>!u.resident).length} ลูกค้าทั่วไป`,"user","blue")}
   </div>
 
-  <div class="grid grid-cols-3 gap-4 mb-6">
-    <div class="card p-5 col-span-2">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div class="card p-4 md:p-5 lg:col-span-2">
       <div class="flex items-center justify-between mb-4">
         <p class="disp font-semibold" style="font-size:14px">รายได้ 7 วันล่าสุด</p>
         <p style="font-size:11px;color:var(--ink-faint)">หน่วย: บาท</p>
@@ -432,8 +443,8 @@ function overviewSection(){
     </div>
   </div>
 
-  <div class="grid grid-cols-3 gap-4">
-    <div class="card p-5 col-span-2">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="card p-4 md:p-5 lg:col-span-2">
       <p class="disp font-semibold mb-4" style="font-size:14px">บริการที่มีการจองมากสุด</p>
       <div class="flex flex-col gap-3">
         ${cats.map(([catKey,count])=>{
@@ -441,7 +452,7 @@ function overviewSection(){
           return `
           <div class="flex items-center gap-3">
             <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${toneDim(c.tone)};color:${tone(c.tone)}">${icon(c.icon,14)}</div>
-            <span style="font-size:12.5px;width:140px" class="shrink-0">${c.label}</span>
+            <span style="font-size:12.5px" class="shrink-0 w-[92px] sm:w-[140px] truncate">${c.label}</span>
             <div class="flex-1 rounded-full h-2" style="background:var(--surface-hover)">
               <div class="h-2 rounded-full" style="width:${(count/maxCat)*100}%;background:${tone(c.tone)}"></div>
             </div>
@@ -486,18 +497,18 @@ function filteredBookings(){
 function bookingsSection(){
   const list = filteredBookings();
   return `
-  <div class="card p-5">
+  <div class="card p-4 md:p-5">
     <div class="flex items-center gap-3 mb-4 flex-wrap">
-      <input type="text" id="bookingSearchInput" placeholder="ค้นหาเลขที่จอง / ชื่อลูกค้า / ผู้ให้บริการ" value="${state.bookingSearch}" style="width:280px" />
-      <select id="bookingCatSelect">
+      <input type="text" id="bookingSearchInput" placeholder="ค้นหาเลขที่จอง / ชื่อลูกค้า / ผู้ให้บริการ" value="${state.bookingSearch}" class="w-full sm:w-[280px]" />
+      <select id="bookingCatSelect" class="w-full xs:w-auto sm:w-auto flex-1 sm:flex-none min-w-0">
         <option value="all" ${state.bookingCat==="all"?"selected":""}>ทุกประเภทบริการ</option>
         ${Object.entries(CATS).map(([k,c])=>`<option value="${k}" ${state.bookingCat===k?"selected":""}>${c.label}</option>`).join("")}
       </select>
-      <select id="bookingStatusSelect">
+      <select id="bookingStatusSelect" class="flex-1 sm:flex-none min-w-0">
         <option value="all" ${state.bookingStatus==="all"?"selected":""}>ทุกสถานะ</option>
         ${Object.entries(STATUS).map(([k,s])=>`<option value="${k}" ${state.bookingStatus===k?"selected":""}>${s.label}</option>`).join("")}
       </select>
-      <span style="font-size:12px;color:var(--ink-faint)" class="ml-auto">${list.length} รายการ</span>
+      <span style="font-size:12px;color:var(--ink-faint)" class="ml-auto shrink-0">${list.length} รายการ</span>
     </div>
     <div class="overflow-x-auto">
       <table>
@@ -530,9 +541,9 @@ function partnersSection(){
   partners.forEach(p=>{ (groups[p.type] = groups[p.type]||[]).push(p); });
 
   return `
-  <div class="grid grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
     ${Object.entries(groups).map(([type,list])=>`
-      <div class="card p-5">
+      <div class="card p-4 md:p-5">
         <div class="flex items-center justify-between mb-3">
           <p class="disp font-semibold" style="font-size:14px">${PARTNER_TYPES[type].label}</p>
           <span style="font-size:11px;color:var(--ink-faint)">${list.filter(p=>p.status==="avail").length} พร้อมงาน จาก ${list.length}</span>
@@ -566,15 +577,15 @@ function filteredUsers(){
 function customersSection(){
   const list = filteredUsers();
   return `
-  <div class="card p-5">
+  <div class="card p-4 md:p-5">
     <div class="flex items-center gap-3 mb-4 flex-wrap">
-      <input type="text" id="userSearchInput" placeholder="ค้นหาชื่อผู้ใช้บริการ" value="${state.userSearch}" style="width:260px" />
-      <select id="userFilterSelect">
+      <input type="text" id="userSearchInput" placeholder="ค้นหาชื่อผู้ใช้บริการ" value="${state.userSearch}" class="w-full sm:w-[260px]" />
+      <select id="userFilterSelect" class="flex-1 sm:flex-none min-w-0">
         <option value="all" ${state.userFilter==="all"?"selected":""}>ทั้งหมด</option>
         <option value="resident" ${state.userFilter==="resident"?"selected":""}>ลูกบ้าน Ornsirin</option>
         <option value="guest" ${state.userFilter==="guest"?"selected":""}>ลูกค้าทั่วไป</option>
       </select>
-      <span style="font-size:12px;color:var(--ink-faint)" class="ml-auto">${list.length} คน</span>
+      <span style="font-size:12px;color:var(--ink-faint)" class="ml-auto shrink-0">${list.length} คน</span>
     </div>
     <div class="overflow-x-auto">
       <table>
@@ -610,7 +621,7 @@ function drawer(){
     return `
     <div class="fixed inset-0 z-30 flex justify-end" data-drawer-overlay>
       <div class="absolute inset-0" style="background:rgba(0,0,0,.5)" data-close-drawer></div>
-      <div class="relative w-[380px] h-full p-6 flex flex-col gap-5 overflow-y-auto" style="background:var(--surface);border-left:1px solid var(--border-soft)">
+      <div class="relative w-full sm:w-[380px] h-full p-5 md:p-6 flex flex-col gap-5 overflow-y-auto" style="background:var(--surface);border-left:1px solid var(--border-soft)">
         <div class="flex items-center justify-between">
           <p class="disp font-semibold" style="font-size:16px">รายละเอียดการจอง</p>
           ${closeBtn}
@@ -640,7 +651,7 @@ function drawer(){
     return `
     <div class="fixed inset-0 z-30 flex justify-end" data-drawer-overlay>
       <div class="absolute inset-0" style="background:rgba(0,0,0,.5)" data-close-drawer></div>
-      <div class="relative w-[380px] h-full p-6 flex flex-col gap-5 overflow-y-auto" style="background:var(--surface);border-left:1px solid var(--border-soft)">
+      <div class="relative w-full sm:w-[380px] h-full p-5 md:p-6 flex flex-col gap-5 overflow-y-auto" style="background:var(--surface);border-left:1px solid var(--border-soft)">
         <div class="flex items-center justify-between">
           <p class="disp font-semibold" style="font-size:16px">โปรไฟล์ผู้ให้บริการ</p>
           ${closeBtn}
@@ -695,9 +706,9 @@ function render(){
   app.innerHTML = `
   <div class="flex">
     ${sidebar()}
-    <main class="flex-1 min-w-0">
+    <main class="flex-1 min-w-0 w-full">
       ${topbar()}
-      <div class="p-7">${sectionBody()}</div>
+      <div class="p-4 md:p-7">${sectionBody()}</div>
     </main>
   </div>
   ${drawer()}`;
@@ -731,7 +742,9 @@ function handleLogout(){
 
 function bindEvents(){
   document.querySelectorAll("[data-logout]").forEach(el=>el.addEventListener("click", handleLogout));
-  document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",()=>setState({section:el.dataset.nav, drawer:null})));
+  document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",()=>setState({section:el.dataset.nav, drawer:null, mobileNavOpen:false})));
+  document.querySelectorAll("[data-open-mobile-nav]").forEach(el=>el.addEventListener("click",()=>setState({mobileNavOpen:true})));
+  document.querySelectorAll("[data-close-mobile-nav]").forEach(el=>el.addEventListener("click",()=>setState({mobileNavOpen:false})));
 
   const bs = document.getElementById("bookingSearchInput");
   if(bs){ bs.addEventListener("input", e=>{ state.bookingSearch = e.target.value; renderKeepFocus(bs); }); }

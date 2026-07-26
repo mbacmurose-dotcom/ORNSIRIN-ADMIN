@@ -8,8 +8,10 @@
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Firebase SDK (ปิดไว้ก่อน — เปิดใช้เมื่อจะผูก Authentication จริงอีกครั้ง)
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+-->
 <style>
 :root{
   --bg:#0F1512; --surface:#161E19; --surface-2:#1C2620; --surface-hover:#233026;
@@ -171,10 +173,35 @@ const rawBookings = [
   ref, userId, cat, provider, status, amount, discount, at: daysAgo(dOffset,h,m)
 }));
 
-/* ============================= AUTH (Firebase Authentication) ============================= */
+/* ============================= AUTH (ตอนนี้เป็นแค่หน้าตา — ยังไม่ผูก Firebase จริง) =============================
+   หน้า login ยังแสดงอยู่ตามปกติ แต่ authenticate() ด้านล่างจะปล่อยให้เข้าระบบได้เสมอ
+   ไม่ตรวจอีเมล/รหัสผ่านจริง — กด "เข้าสู่ระบบ" แล้วเข้าได้เลย
 
-// ค่าปัจจุบันของผู้ใช้ที่ล็อกอินอยู่จะถูกเซ็ตโดย onAuthStateChanged ด้านล่าง (ใกล้ๆ ท้ายไฟล์)
-// ซึ่งจะคง session ไว้ให้อัตโนมัติแม้รีเฟรชหน้า — ไม่ต้องเขียนจัดการ session เอง
+   เก็บ firebaseConfig ของโปรเจกต์ cmcc-web-auth ไว้เป็นคอมเมนต์ พร้อมใช้งานอนาคต:
+   วิธีเปิดกลับมาใช้จริง — 1) เปิดคอมเมนต์ Firebase SDK ใน <head>  2) เปิดคอมเมนต์บล็อกด้านล่างนี้
+   3) แทนฟังก์ชัน authenticate() ด้วยเวอร์ชัน Firebase ที่คอมเมนต์ไว้
+================================================================================================= */
+
+// const firebaseConfig = {
+//   apiKey: "AIzaSyAzFD4Yl_VbnH91yYnHtsIqzhjPa1tbRHw",
+//   authDomain: "cmcc-web-auth.firebaseapp.com",
+//   projectId: "cmcc-web-auth",
+//   storageBucket: "cmcc-web-auth.firebasestorage.app",
+//   messagingSenderId: "636869110080",
+//   appId: "1:636869110080:web:ae569c4f3ca5cec0f032a5",
+//   measurementId: "G-7X15EL341W",
+// };
+// firebase.initializeApp(firebaseConfig);
+
+function authenticate(email, password){
+  // ===== ปัจจุบัน: เข้าได้เสมอ ไม่ตรวจสอบจริง =====
+  return Promise.resolve({ ok:true, user:{ name: email || "แอดมิน", email: email || "" } });
+
+  // ===== เมื่อจะผูก Firebase จริงอีกครั้ง ให้แทนบรรทัดข้างบนด้วยโค้ดนี้ =====
+  // return firebase.auth().signInWithEmailAndPassword(email, password)
+  //   .then(()=>({ ok:true }))
+  //   .catch(()=>({ ok:false, error:"อีเมลหรือรหัสผ่านไม่ถูกต้อง" }));
+}
 
 function userById(id){ return users.find(u=>u.id===id); }
 function fmtBaht(n){ return "฿"+n.toLocaleString(); }
@@ -267,7 +294,7 @@ function loginScreen(){
       </form>
 
       <p class="text-center mt-5" style="font-size:11px;color:var(--ink-faint)">
-        เข้าสู่ระบบด้วยบัญชีแอดมินที่สร้างไว้ใน Firebase Authentication ของโครงการ cmcc-web-auth
+        หน้านี้ยังไม่ผูกระบบตรวจสอบจริง — กรอกหรือไม่กรอกก็กด "เข้าสู่ระบบ" เพื่อเข้าใช้งานได้เลย
       </p>
     </div>
   </div>`;
@@ -687,20 +714,19 @@ function bindLoginEvents(){
 
 async function handleLogin(){
   const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
-  if(!email || !password){ state.auth.error = "กรุณากรอกอีเมลและรหัสผ่าน"; render(); return; }
   state.auth.loading = true; state.auth.error = ""; render();
-  const result = await authenticate(email, password);
-  // เมื่อสำเร็จ ไม่ต้องเซ็ต state เอง — onAuthStateChanged ด้านล่างจะรับช่วงต่อและ render ให้
-  if(!result.ok){
+  const result = await authenticate(email, "");
+  if(result.ok){
+    state.auth = { loggedIn:true, user:result.user, loading:false, error:"" };
+  } else {
     state.auth.loading = false; state.auth.error = result.error;
-    render();
   }
+  render();
 }
 
 function handleLogout(){
-  firebase.auth().signOut();
-  // onAuthStateChanged ด้านล่างจะรับช่วง set state.auth.loggedIn = false และ render ให้เอง
+  state.auth = { loggedIn:false, user:null, loading:false, error:"" };
+  setState({ section:"overview", drawer:null });
 }
 
 function bindEvents(){
@@ -736,15 +762,13 @@ function renderKeepFocus(inputEl){
   if(el){ el.focus(); el.setSelectionRange(pos,pos); }
 }
 
-firebase.auth().onAuthStateChanged(user=>{
-  if(user){
-    state.auth = { loggedIn:true, user:{ name:user.displayName || user.email, email:user.email }, loading:false, error:"" };
-  } else {
-    state.auth = { loggedIn:false, user:null, loading:false, error:"" };
-    state.section = "overview"; state.drawer = null;
-  }
-  render();
-});
+// เมื่อจะผูก Firebase จริงอีกครั้ง ให้แทน render() บรรทัดล่างนี้ด้วย:
+// firebase.auth().onAuthStateChanged(user=>{
+//   if(user){ state.auth = { loggedIn:true, user:{ name:user.displayName || user.email, email:user.email }, loading:false, error:"" }; }
+//   else { state.auth = { loggedIn:false, user:null, loading:false, error:"" }; state.section="overview"; state.drawer=null; }
+//   render();
+// });
+render();
 </script>
 </body>
 </html>

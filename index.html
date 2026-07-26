@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ornsirin Ops · Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0F1512; --surface:#161E19; --surface-2:#1C2620; --surface-hover:#233026;
+  --border:#2A362B; --border-soft:#212B23;
+  --ink:#EAF0E4; --ink-dim:#9FAE93; --ink-faint:#66755D;
+  --brand:#5FA24C; --brand-dim:rgba(95,162,76,.16); --brand-glow:rgba(95,162,76,.55);
+  --amber:#E3A73B; --amber-dim:rgba(227,167,59,.16);
+  --red:#DA5B4E; --red-dim:rgba(218,91,78,.16);
+  --blue:#5091C9; --blue-dim:rgba(80,145,201,.16);
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans Thai',sans-serif;-webkit-font-smoothing:antialiased}
+.disp{font-family:'Chakra Petch',sans-serif}
+.tabnum{font-variant-numeric:tabular-nums}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2A362B;border-radius:6px}
+.led{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.led-brand{background:var(--brand);box-shadow:0 0 6px var(--brand-glow)}
+.led-amber{background:var(--amber);box-shadow:0 0 6px rgba(227,167,59,.55)}
+.led-red{background:var(--red);box-shadow:0 0 6px rgba(218,91,78,.55)}
+.led-faint{background:#3A4A3D}
+.pulse{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.card{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:14px}
+.navlink{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;color:var(--ink-dim);font-size:13.5px;font-weight:500;cursor:pointer;transition:background .15s,color .15s}
+.navlink:hover{background:var(--surface-hover);color:var(--ink)}
+.navlink.active{background:var(--brand-dim);color:var(--brand)}
+.chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:5px}
+table{border-collapse:collapse;width:100%}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);font-weight:600;text-align:left;padding:9px 12px;border-bottom:1px solid var(--border-soft)}
+td{padding:11px 12px;border-bottom:1px solid var(--border-soft);font-size:13px;color:var(--ink)}
+tr.rowbtn:hover td{background:var(--surface-hover);cursor:pointer}
+input[type=text],select{background:var(--surface);border:1px solid var(--border);color:var(--ink);font-size:13px;border-radius:9px;padding:7px 11px;outline:none}
+input[type=text]:focus,select:focus{border-color:var(--brand)}
+select{appearance:none}
+.scrollbox::-webkit-scrollbar{width:7px}
+.donut{width:130px;height:130px;border-radius:50%}
+</style>
+</head>
+<body class="min-h-screen">
+<div id="app"></div>
+
+<script>
+/* ============================= MOCK DATA (in-memory demo — matches Ornsirin Health Link's service model) ============================= */
+
+const CATS = {
+  doctor:  { label:"ปรึกษาแพทย์ทางไกล",  icon:"stethoscope", tone:"blue"   },
+  lab:     { label:"เจาะเลือดถึงบ้าน",     icon:"droplet",     tone:"red"    },
+  meds:    { label:"จัดส่งยาต่อเนื่อง",     icon:"pill",        tone:"amber"  },
+  maid:    { label:"แม่บ้าน",              icon:"sparkles",    tone:"brand"  },
+  massage: { label:"นวด",                 icon:"hand",        tone:"brand"  },
+  icebath: { label:"Ice Bath",            icon:"snowflake",   tone:"blue"   },
+  physio:  { label:"กายภาพบำบัด",          icon:"activity",    tone:"brand"  },
+  petcare: { label:"ดูแลสัตว์เลี้ยง",       icon:"dog",         tone:"amber"  },
+};
+
+const STATUS = {
+  pending:     { label:"รอจับคู่",       tone:"amber" },
+  in_progress: { label:"กำลังให้บริการ", tone:"blue"  },
+  completed:   { label:"เสร็จสิ้น",      tone:"brand" },
+  cancelled:   { label:"ยกเลิก",         tone:"red"   },
+};
+
+const users = [
+  { id:"u1", name:"สมหญิง สุขใจ",       resident:true,  place:"บ้านเลขที่ 12/4",  joined:"ม.ค. 2568", bookings:14, lastActive:"วันนี้" },
+  { id:"u2", name:"สมชาย สุขใจ",        resident:true,  place:"บ้านเลขที่ 45/2",  joined:"ม.ค. 2568", bookings:6,  lastActive:"เมื่อวาน" },
+  { id:"u3", name:"คุณยายบุญมี สุขใจ",   resident:true,  place:"บ้านเลขที่ 88/1",  joined:"ก.พ. 2568", bookings:21, lastActive:"วันนี้" },
+  { id:"u4", name:"กานต์ ใจดี",         resident:false, place:"คอนโดนิมมาน เรสซิเดนซ์", joined:"มี.ค. 2568", bookings:5, lastActive:"3 วันก่อน" },
+  { id:"u5", name:"วรรณา เจริญสุข",     resident:true,  place:"บ้านเลขที่ 21/3",  joined:"ม.ค. 2568", bookings:9,  lastActive:"วันนี้" },
+  { id:"u6", name:"ประเสริฐ มั่นคง",     resident:true,  place:"บ้านเลขที่ 5/1",   joined:"เม.ย. 2568", bookings:3,  lastActive:"5 วันก่อน" },
+  { id:"u7", name:"อรุณี พงษ์ไพร",      resident:false, place:"บ้านเดี่ยวหางดง",  joined:"พ.ค. 2568", bookings:2,  lastActive:"1 สัปดาห์ก่อน" },
+  { id:"u8", name:"ธีรพงษ์ ศรีสวัสดิ์", resident:true,  place:"บ้านเลขที่ 60/2",  joined:"ก.พ. 2568", bookings:11, lastActive:"วันนี้" },
+  { id:"u9", name:"มาลี รุ่งเรือง",      resident:true,  place:"บ้านเลขที่ 33/1",  joined:"มี.ค. 2568", bookings:7,  lastActive:"2 วันก่อน" },
+  { id:"u10",name:"สุรชัย เกษมสุข",     resident:false, place:"คอนโดสันติธรรม",   joined:"มิ.ย. 2568", bookings:1,  lastActive:"2 สัปดาห์ก่อน" },
+  { id:"u11",name:"คุณยายสมพร ใจงาม",   resident:true,  place:"บ้านเลขที่ 9/4",   joined:"ม.ค. 2568", bookings:18, lastActive:"วันนี้" },
+  { id:"u12",name:"ปิยะดา แสงจันทร์",   resident:true,  place:"บ้านเลขที่ 71/2",  joined:"ก.ค. 2568", bookings:4,  lastActive:"เมื่อวาน" },
+];
+
+let partners = [
+  { id:"p1", name:"พี่นิด",       type:"maid",    role:"แม่บ้านมืออาชีพ 5 ปี",             status:"avail", rating:4.9, jobsToday:2 },
+  { id:"p2", name:"พี่แดง",       type:"maid",    role:"แม่บ้านมืออาชีพ 3 ปี",             status:"avail", rating:4.8, jobsToday:1 },
+  { id:"p3", name:"พี่เล็ก",      type:"maid",    role:"แม่บ้านมืออาชีพ 7 ปี",             status:"busy",  rating:5.0, jobsToday:3 },
+  { id:"p4", name:"ครูอ้อย",      type:"massage", role:"ผู้เชี่ยวชาญนวดแผนไทย",             status:"avail", rating:4.9, jobsToday:2 },
+  { id:"p5", name:"ครูตุ๊ก",      type:"massage", role:"ผู้เชี่ยวชาญนวดอโรมา",              status:"avail", rating:4.7, jobsToday:1 },
+  { id:"p6", name:"ครูหนึ่ง",     type:"massage", role:"ผู้เชี่ยวชาญนวดเท้า",               status:"busy",  rating:4.8, jobsToday:2 },
+  { id:"p7", name:"โค้ชบอล",     type:"icebath", role:"เจ้าหน้าที่ดูแล Ice bath",         status:"avail", rating:4.9, jobsToday:1 },
+  { id:"p8", name:"โค้ชปูน",     type:"icebath", role:"เจ้าหน้าที่ดูแล Ice bath",         status:"off",   rating:4.6, jobsToday:0 },
+  { id:"p9", name:"กภ. กิตติ",   type:"physio",  role:"นักกายภาพบำบัด 8 ปี",             status:"avail", rating:5.0, jobsToday:2 },
+  { id:"p10",name:"กภ. มณี",     type:"physio",  role:"ผู้เชี่ยวชาญผู้สูงอายุ",            status:"busy",  rating:4.9, jobsToday:3 },
+  { id:"p11",name:"สพ.ญ. พิม",   type:"pet",     role:"สัตวแพทย์ / ช่างตัดขน",            status:"avail", rating:4.9, jobsToday:1 },
+  { id:"p12",name:"พี่ตูน",      type:"pet",     role:"พนักงานดูแลสัตว์เลี้ยง",            status:"avail", rating:4.7, jobsToday:0 },
+  { id:"p13",name:"พว. ศิริพร",  type:"nurse",   role:"พยาบาลวิชาชีพ · เจาะเลือดถึงบ้าน",  status:"busy",  rating:5.0, jobsToday:4 },
+  { id:"p14",name:"คุณต้น",      type:"rider",   role:"ไรเดอร์จัดส่งยา",                  status:"avail", rating:4.8, jobsToday:5 },
+  { id:"p15",name:"คุณปอ",       type:"rider",   role:"ไรเดอร์จัดส่งยา",                  status:"busy",  rating:4.6, jobsToday:3 },
+  { id:"p16",name:"พญ. อารีย์",  type:"doctor",  role:"แพทย์ทั่วไป",                      status:"avail", rating:4.9, jobsToday:6 },
+  { id:"p17",name:"นพ. ธนกร",   type:"doctor",  role:"แพทย์ทั่วไป",                      status:"avail", rating:4.8, jobsToday:4 },
+  { id:"p18",name:"พญ. พิมพ์ลดา",type:"doctor",  role:"จิตแพทย์",                        status:"busy",  rating:5.0, jobsToday:3 },
+  { id:"p19",name:"คุณเมธาวี",   type:"doctor",  role:"นักจิตวิทยาคลินิก",                status:"avail", rating:4.9, jobsToday:2 },
+  { id:"p20",name:"พญ. วรินทร", type:"doctor",  role:"อายุรแพทย์",                       status:"avail", rating:4.8, jobsToday:1 },
+  { id:"p21",name:"นพ. ปกรณ์",  type:"doctor",  role:"ศัลยแพทย์กระดูกและข้อ",             status:"off",   rating:4.7, jobsToday:0 },
+];
+const PARTNER_TYPES = {
+  maid:{label:"แม่บ้าน"}, massage:{label:"นวด"}, icebath:{label:"Ice Bath"}, physio:{label:"กายภาพบำบัด"},
+  pet:{label:"ดูแลสัตว์เลี้ยง"}, nurse:{label:"พยาบาลเจาะเลือด"}, rider:{label:"ไรเดอร์"}, doctor:{label:"แพทย์/นักจิตวิทยา"},
+};
+
+/* dates relative to "today" so the dashboard always looks live */
+function daysAgo(n, h=9, m=0){ const d=new Date(); d.setDate(d.getDate()-n); d.setHours(h,m,0,0); return d; }
+
+const rawBookings = [
+  // today
+  ["ORN-1042","u1","doctor","พญ. อารีย์","completed",450,true, 0,9,20],
+  ["ORN-1043","u8","lab","พว. ศิริพร","in_progress",300,true, 0,10,10],
+  ["ORN-1044","u4","meds","คุณต้น","in_progress",190,false,0,10,40],
+  ["ORN-1045","u3","physio","กภ. มณี","in_progress",850,true, 0,11,0],
+  ["ORN-1046","u5","maid","พี่แดง","pending",900,true, 0,11,15],
+  ["ORN-1047","u11","massage","ครูอ้อย","completed",500,true, 0,8,30],
+  ["ORN-1048","u9","petcare","สพ.ญ. พิม","pending",450,true, 0,12,5],
+  ["ORN-1049","u1","doctor","คุณเมธาวี","pending",550,true, 0,12,30],
+  ["ORN-1050","u6","meds","คุณปอ","in_progress",40,true, 0,12,50],
+  ["ORN-1051","u12","doctor","นพ. ธนกร","completed",450,false,0,7,50],
+  // yesterday
+  ["ORN-1031","u2","massage","ครูตุ๊ก","completed",750,true, 1,14,0],
+  ["ORN-1032","u8","physio","กภ. กิตติ","completed",800,false,1,15,10],
+  ["ORN-1033","u3","lab","พว. ศิริพร","completed",0,true, 1,9,0],
+  ["ORN-1034","u4","doctor","พญ. วรินทร","completed",650,false,1,10,20],
+  ["ORN-1035","u9","meds","คุณต้น","cancelled",190,false,1,16,0],
+  ["ORN-1036","u1","maid","พี่นิด","completed",900,true, 1,13,30],
+  ["ORN-1037","u11","icebath","โค้ชบอล","completed",350,true, 1,17,10],
+  ["ORN-1038","u5","doctor","พญ. พิมพ์ลดา","completed",550,true, 1,11,45],
+  // 2 days ago
+  ["ORN-1020","u6","petcare","พี่ตูน","completed",250,true, 2,10,0],
+  ["ORN-1021","u12","massage","ครูอ้อย","completed",500,false,2,15,30],
+  ["ORN-1022","u3","doctor","นพ. ธนกร","completed",450,true, 2,9,10],
+  ["ORN-1023","u8","meds","คุณปอ","completed",40,true, 2,18,0],
+  ["ORN-1024","u1","lab","พว. ศิริพร","completed",0,true, 2,8,45],
+  ["ORN-1025","u9","physio","กภ. มณี","cancelled",850,false,2,13,0],
+  // 3 days ago
+  ["ORN-1010","u2","doctor","พญ. อารีย์","completed",450,true, 3,9,30],
+  ["ORN-1011","u4","icebath","โค้ชบอล","completed",550,false,3,16,20],
+  ["ORN-1012","u11","maid","พี่เล็ก","completed",900,true, 3,10,0],
+  ["ORN-1013","u5","massage","ครูหนึ่ง","completed",450,true, 3,14,10],
+  ["ORN-1014","u3","petcare","สพ.ญ. พิม","completed",600,true, 3,11,0],
+  // 4 days ago
+  ["ORN-0998","u8","doctor","คุณเมธาวี","completed",550,false,4,9,0],
+  ["ORN-0999","u1","meds","คุณต้น","completed",40,true, 4,17,30],
+  ["ORN-1000","u9","lab","พว. ศิริพร","completed",300,false,4,10,15],
+  ["ORN-1001","u12","physio","กภ. กิตติ","completed",800,true, 4,13,45],
+  // 5 days ago
+  ["ORN-0985","u6","massage","ครูตุ๊ก","completed",750,false,5,15,0],
+  ["ORN-0986","u3","doctor","พญ. วรินทร","completed",650,true, 5,9,30],
+  ["ORN-0987","u11","maid","พี่แดง","completed",900,true, 5,10,50],
+  // 6 days ago
+  ["ORN-0970","u4","doctor","นพ. ธนกร","completed",450,false,6,11,0],
+  ["ORN-0971","u1","petcare","พี่ตูน","completed",250,true, 6,14,20],
+  ["ORN-0972","u8","icebath","โค้ชบอล","cancelled",350,false,6,16,40],
+].map(([ref,userId,cat,provider,status,amount,discount,dOffset,h,m])=>({
+  ref, userId, cat, provider, status, amount, discount, at: daysAgo(dOffset,h,m)
+}));
+
+function userById(id){ return users.find(u=>u.id===id); }
+function fmtBaht(n){ return "฿"+n.toLocaleString(); }
+function fmtDate(d){ return d.toLocaleDateString("th-TH",{day:"numeric",month:"short"}) + " · " + d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}); }
+function isToday(d){ const n=new Date(); return d.toDateString()===n.toDateString(); }
+function isSameDay(d,offset){ return d.toDateString()===daysAgo(offset).toDateString(); }
+
+/* ============================= STATE ============================= */
+const state = {
+  section:"overview",
+  bookingSearch:"", bookingCat:"all", bookingStatus:"all",
+  userSearch:"", userFilter:"all",
+  drawer:null, // { kind:'booking', ref } | { kind:'partner', id }
+};
+
+function setState(patch){ Object.assign(state, patch); render(); }
+
+/* ============================= DERIVED / STATS ============================= */
+function todaysBookings(){ return rawBookings.filter(b=>isToday(b.at)); }
+function revenueOf(list){ return list.filter(b=>b.status!=="cancelled").reduce((s,b)=>s+b.amount,0); }
+
+function last7DaysRevenue(){
+  const out=[];
+  for(let i=6;i>=0;i--){
+    const list = rawBookings.filter(b=>isSameDay(b.at,i));
+    out.push({ offset:i, label: i===0?"วันนี้": daysAgo(i).toLocaleDateString("th-TH",{day:"numeric",month:"short"}), value: revenueOf(list) });
+  }
+  return out;
+}
+
+function categoryBreakdown(){
+  const counts={};
+  rawBookings.forEach(b=>{ if(b.status==="cancelled") return; counts[b.cat]=(counts[b.cat]||0)+1; });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+
+function statusBreakdown(){
+  const counts={pending:0,in_progress:0,completed:0,cancelled:0};
+  rawBookings.forEach(b=>counts[b.status]++);
+  return counts;
+}
+
+/* ============================= ICON HELPER ============================= */
+function icon(name, size=16, extraClass=""){
+  return `<i data-lucide="${name}" style="width:${size}px;height:${size}px" class="${extraClass}"></i>`;
+}
+function tone(t){ return { brand:"var(--brand)", amber:"var(--amber)", red:"var(--red)", blue:"var(--blue)" }[t] || "var(--ink-dim)"; }
+function toneDim(t){ return { brand:"var(--brand-dim)", amber:"var(--amber-dim)", red:"var(--red-dim)", blue:"var(--blue-dim)" }[t] || "rgba(255,255,255,.06)"; }
+
+function statusChip(s){
+  const cfg = STATUS[s];
+  return `<span class="chip" style="background:${toneDim(cfg.tone)};color:${tone(cfg.tone)}"><span class="led" style="background:${tone(cfg.tone)};box-shadow:none"></span>${cfg.label}</span>`;
+}
+function partnerStatusChip(s){
+  const map = { avail:{label:"พร้อมรับงาน",tone:"brand"}, busy:{label:"กำลังให้บริการ",tone:"blue"}, off:{label:"ไม่พร้อม",tone:"red"} };
+  const cfg = map[s];
+  return `<span class="chip" style="background:${toneDim(cfg.tone)};color:${tone(cfg.tone)}"><span class="led" style="background:${tone(cfg.tone)};box-shadow:none"></span>${cfg.label}</span>`;
+}
+
+/* ============================= LAYOUT PIECES ============================= */
+const NAV = [
+  { id:"overview", label:"ภาพรวม", icon:"layout-dashboard" },
+  { id:"bookings",  label:"การจอง & บริการ", icon:"calendar-check" },
+  { id:"partners",  label:"ผู้ให้บริการ", icon:"users-round" },
+  { id:"customers", label:"ผู้ใช้บริการ", icon:"user" },
+];
+
+function sidebar(){
+  return `
+  <aside class="w-[236px] shrink-0 h-screen sticky top-0 flex flex-col" style="background:var(--surface);border-right:1px solid var(--border-soft)">
+    <div class="px-5 py-5 flex items-center gap-2.5" style="border-bottom:1px solid var(--border-soft)">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--brand-dim)">
+        ${icon("shield-half",17,"")}
+      </div>
+      <div>
+        <p class="disp font-semibold" style="font-size:14px;line-height:1.1">ORNSIRIN OPS</p>
+        <p style="font-size:10.5px;color:var(--ink-faint)">แผงควบคุมแอดมิน</p>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 flex flex-col gap-1">
+      ${NAV.map(n=>`
+        <div class="navlink ${state.section===n.id?"active":""}" data-nav="${n.id}">
+          ${icon(n.icon,16)}<span>${n.label}</span>
+        </div>`).join("")}
+    </nav>
+    <div class="px-4 py-4 mx-3 mb-4 rounded-xl" style="background:var(--surface);border:1px solid var(--border-soft)">
+      <p style="font-size:10.5px;color:var(--ink-faint)" class="mb-2">ระบบทั้งหมด 3 แอป</p>
+      <div class="flex flex-col gap-1.5" style="font-size:11.5px;color:var(--ink-dim)">
+        <div class="flex items-center gap-2">${icon("smartphone",13)} ผู้ใช้บริการ</div>
+        <div class="flex items-center gap-2" style="color:var(--brand)">${icon("shield-half",13)} แอดมิน (คุณอยู่ที่นี่)</div>
+        <div class="flex items-center gap-2">${icon("briefcase",13)} พาร์ทเนอร์ผู้ให้บริการ</div>
+      </div>
+    </div>
+  </aside>`;
+}
+
+function topbar(){
+  const titleMap = { overview:"ภาพรวมระบบ", bookings:"การจอง & บริการทั้งหมด", partners:"ผู้ให้บริการ / พาร์ทเนอร์", customers:"ผู้ใช้บริการ" };
+  const now = new Date();
+  return `
+  <header class="sticky top-0 z-10 flex items-center justify-between px-7 py-4" style="background:rgba(15,21,18,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border-soft)">
+    <div>
+      <h1 class="disp font-semibold" style="font-size:19px">${titleMap[state.section]}</h1>
+      <p style="font-size:12px;color:var(--ink-faint)" class="mt-0.5">${now.toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:var(--brand-dim);color:var(--brand);font-size:11.5px;font-weight:600">
+        <span class="led led-brand pulse"></span> LIVE
+      </div>
+      <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold disp" style="background:var(--surface-2);border:1px solid var(--border);font-size:12px">อด</div>
+    </div>
+  </header>`;
+}
+
+/* ============================= OVERVIEW SECTION ============================= */
+function kpiCard(label, value, sub, icn, t){
+  return `
+  <div class="card p-5 flex flex-col gap-2">
+    <div class="flex items-center justify-between">
+      <span style="font-size:12px;color:var(--ink-faint)">${label}</span>
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:${toneDim(t)};color:${tone(t)}">${icon(icn,14)}</div>
+    </div>
+    <p class="disp tabnum" style="font-size:26px;font-weight:600">${value}</p>
+    <p style="font-size:11.5px;color:var(--ink-dim)">${sub}</p>
+  </div>`;
+}
+
+function overviewSection(){
+  const today = todaysBookings();
+  const inProgress = today.filter(b=>b.status==="in_progress").length;
+  const revToday = revenueOf(today);
+  const totalUsers = users.length;
+  const onDuty = partners.filter(p=>p.status!=="off").length;
+
+  const rev7 = last7DaysRevenue();
+  const maxRev = Math.max(...rev7.map(d=>d.value), 1);
+  const cats = categoryBreakdown();
+  const maxCat = Math.max(...cats.map(c=>c[1]), 1);
+  const sBreak = statusBreakdown();
+  const sTotal = Object.values(sBreak).reduce((a,b)=>a+b,0);
+
+  // conic-gradient donut
+  let acc=0;
+  const donutStops = Object.entries(sBreak).map(([k,v])=>{
+    const pct = v/sTotal*100;
+    const start = acc; acc += pct;
+    return `${tone(STATUS[k].tone)} ${start}% ${acc}%`;
+  }).join(",");
+
+  const liveQueue = rawBookings.filter(b=>b.status==="in_progress");
+
+  return `
+  <div class="grid grid-cols-4 gap-4 mb-6">
+    ${kpiCard("การจองวันนี้", today.length, `${inProgress} รายการกำลังให้บริการ`, "calendar-check","blue")}
+    ${kpiCard("รายได้วันนี้", fmtBaht(revToday), "ไม่รวมรายการที่ยกเลิก","banknote","brand")}
+    ${kpiCard("ผู้ให้บริการพร้อมงาน", `${onDuty}/${partners.length}`, "ทุกประเภทบริการ","users-round","amber")}
+    ${kpiCard("ผู้ใช้บริการทั้งหมด", totalUsers, `${users.filter(u=>u.resident).length} ลูกบ้าน · ${users.filter(u=>!u.resident).length} ลูกค้าทั่วไป`,"user","blue")}
+  </div>
+
+  <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="card p-5 col-span-2">
+      <div class="flex items-center justify-between mb-4">
+        <p class="disp font-semibold" style="font-size:14px">รายได้ 7 วันล่าสุด</p>
+        <p style="font-size:11px;color:var(--ink-faint)">หน่วย: บาท</p>
+      </div>
+      <div class="flex items-end gap-3" style="height:130px">
+        ${rev7.map(d=>`
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <span class="tabnum" style="font-size:10.5px;color:var(--ink-dim)">${d.value?d.value.toLocaleString():"0"}</span>
+            <div style="width:100%;border-radius:6px 6px 3px 3px;background:${d.offset===0?"var(--brand)":"var(--surface-hover)"};height:${Math.max(6,(d.value/maxRev)*84)}px"></div>
+            <span style="font-size:10.5px;color:var(--ink-faint)">${d.label}</span>
+          </div>`).join("")}
+      </div>
+    </div>
+
+    <div class="card p-5 flex flex-col items-center">
+      <p class="disp font-semibold self-start mb-4" style="font-size:14px">สถานะการจอง</p>
+      <div class="donut" style="background:conic-gradient(${donutStops})"></div>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 w-full">
+        ${Object.entries(sBreak).map(([k,v])=>`
+          <div class="flex items-center gap-1.5" style="font-size:11.5px;color:var(--ink-dim)">
+            <span class="led" style="background:${tone(STATUS[k].tone)};box-shadow:none"></span>${STATUS[k].label}
+            <span class="tabnum" style="color:var(--ink)">${v}</span>
+          </div>`).join("")}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-4">
+    <div class="card p-5 col-span-2">
+      <p class="disp font-semibold mb-4" style="font-size:14px">บริการที่มีการจองมากสุด</p>
+      <div class="flex flex-col gap-3">
+        ${cats.map(([catKey,count])=>{
+          const c = CATS[catKey];
+          return `
+          <div class="flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${toneDim(c.tone)};color:${tone(c.tone)}">${icon(c.icon,14)}</div>
+            <span style="font-size:12.5px;width:140px" class="shrink-0">${c.label}</span>
+            <div class="flex-1 rounded-full h-2" style="background:var(--surface-hover)">
+              <div class="h-2 rounded-full" style="width:${(count/maxCat)*100}%;background:${tone(c.tone)}"></div>
+            </div>
+            <span class="tabnum shrink-0" style="font-size:12.5px;color:var(--ink-dim);width:22px;text-align:right">${count}</span>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <p class="disp font-semibold" style="font-size:14px">คิวกำลังให้บริการ</p>
+        <span class="led led-blue pulse" style="background:var(--blue)"></span>
+      </div>
+      <div class="flex flex-col gap-3 max-h-[220px] overflow-y-auto scrollbox pr-1">
+        ${liveQueue.length ? liveQueue.map(b=>`
+          <div class="rowbtn flex items-center gap-3 p-2 rounded-lg" style="background:var(--surface)" data-open-booking="${b.ref}">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:${toneDim(CATS[b.cat].tone)};color:${tone(CATS[b.cat].tone)}">${icon(CATS[b.cat].icon,13)}</div>
+            <div class="flex-1 min-w-0">
+              <p style="font-size:12.5px" class="truncate">${userById(b.userId).name}</p>
+              <p style="font-size:11px;color:var(--ink-faint)" class="truncate">${b.provider} · ${CATS[b.cat].label}</p>
+            </div>
+          </div>`).join("") : `<p style="font-size:12px;color:var(--ink-faint)" class="py-6 text-center">ไม่มีบริการที่กำลังดำเนินการ</p>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================= BOOKINGS SECTION ============================= */
+function filteredBookings(){
+  return rawBookings
+    .filter(b=> state.bookingCat==="all" || b.cat===state.bookingCat)
+    .filter(b=> state.bookingStatus==="all" || b.status===state.bookingStatus)
+    .filter(b=>{
+      if(!state.bookingSearch) return true;
+      const q = state.bookingSearch.toLowerCase();
+      return b.ref.toLowerCase().includes(q) || userById(b.userId).name.toLowerCase().includes(q) || b.provider.toLowerCase().includes(q);
+    })
+    .sort((a,b)=>b.at-a.at);
+}
+
+function bookingsSection(){
+  const list = filteredBookings();
+  return `
+  <div class="card p-5">
+    <div class="flex items-center gap-3 mb-4 flex-wrap">
+      <input type="text" id="bookingSearchInput" placeholder="ค้นหาเลขที่จอง / ชื่อลูกค้า / ผู้ให้บริการ" value="${state.bookingSearch}" style="width:280px" />
+      <select id="bookingCatSelect">
+        <option value="all" ${state.bookingCat==="all"?"selected":""}>ทุกประเภทบริการ</option>
+        ${Object.entries(CATS).map(([k,c])=>`<option value="${k}" ${state.bookingCat===k?"selected":""}>${c.label}</option>`).join("")}
+      </select>
+      <select id="bookingStatusSelect">
+        <option value="all" ${state.bookingStatus==="all"?"selected":""}>ทุกสถานะ</option>
+        ${Object.entries(STATUS).map(([k,s])=>`<option value="${k}" ${state.bookingStatus===k?"selected":""}>${s.label}</option>`).join("")}
+      </select>
+      <span style="font-size:12px;color:var(--ink-faint)" class="ml-auto">${list.length} รายการ</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table>
+        <thead><tr>
+          <th>เลขที่จอง</th><th>ลูกค้า</th><th>บริการ</th><th>ผู้ให้บริการ</th><th>เวลา</th><th>ยอดเงิน</th><th>สถานะ</th>
+        </tr></thead>
+        <tbody>
+          ${list.map(b=>`
+            <tr class="rowbtn" data-open-booking="${b.ref}">
+              <td class="tabnum" style="color:var(--ink-dim)">${b.ref}</td>
+              <td>${userById(b.userId).name}</td>
+              <td>
+                <span class="flex items-center gap-1.5">${icon(CATS[b.cat].icon,13,"")}<span style="color:${tone(CATS[b.cat].tone)}">${CATS[b.cat].label}</span></span>
+              </td>
+              <td style="color:var(--ink-dim)">${b.provider}</td>
+              <td class="tabnum" style="color:var(--ink-faint);font-size:12px">${fmtDate(b.at)}</td>
+              <td class="tabnum">${b.amount?fmtBaht(b.amount):"—"}${b.discount?` <span style="color:var(--brand);font-size:10.5px">ลูกบ้าน</span>`:""}</td>
+              <td>${statusChip(b.status)}</td>
+            </tr>`).join("")}
+          ${!list.length ? `<tr><td colspan="7" class="text-center" style="color:var(--ink-faint);padding:30px">ไม่พบรายการที่ตรงกับการค้นหา</td></tr>` : ""}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* ============================= PARTNERS SECTION ============================= */
+function partnersSection(){
+  const groups = {};
+  partners.forEach(p=>{ (groups[p.type] = groups[p.type]||[]).push(p); });
+
+  return `
+  <div class="grid grid-cols-2 gap-4">
+    ${Object.entries(groups).map(([type,list])=>`
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <p class="disp font-semibold" style="font-size:14px">${PARTNER_TYPES[type].label}</p>
+          <span style="font-size:11px;color:var(--ink-faint)">${list.filter(p=>p.status==="avail").length} พร้อมงาน จาก ${list.length}</span>
+        </div>
+        <div class="flex flex-col gap-2">
+          ${list.map(p=>`
+            <div class="rowbtn flex items-center gap-3 p-2.5 rounded-lg" style="background:var(--surface)" data-open-partner="${p.id}">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center disp font-semibold shrink-0" style="background:var(--surface-hover);font-size:12px">${p.name.slice(0,1)}</div>
+              <div class="flex-1 min-w-0">
+                <p style="font-size:13px" class="truncate">${p.name}</p>
+                <p style="font-size:11px;color:var(--ink-faint)" class="truncate">${p.role}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p style="font-size:11px;color:var(--ink-dim)" class="mb-1">${icon("star",11,"inline mb-0.5")} ${p.rating} · ${p.jobsToday} งานวันนี้</p>
+                ${partnerStatusChip(p.status)}
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+/* ============================= CUSTOMERS SECTION ============================= */
+function filteredUsers(){
+  return users
+    .filter(u=> state.userFilter==="all" || (state.userFilter==="resident" ? u.resident : !u.resident))
+    .filter(u=>!state.userSearch || u.name.toLowerCase().includes(state.userSearch.toLowerCase()))
+    .sort((a,b)=>b.bookings-a.bookings);
+}
+
+function customersSection(){
+  const list = filteredUsers();
+  return `
+  <div class="card p-5">
+    <div class="flex items-center gap-3 mb-4 flex-wrap">
+      <input type="text" id="userSearchInput" placeholder="ค้นหาชื่อผู้ใช้บริการ" value="${state.userSearch}" style="width:260px" />
+      <select id="userFilterSelect">
+        <option value="all" ${state.userFilter==="all"?"selected":""}>ทั้งหมด</option>
+        <option value="resident" ${state.userFilter==="resident"?"selected":""}>ลูกบ้าน Ornsirin</option>
+        <option value="guest" ${state.userFilter==="guest"?"selected":""}>ลูกค้าทั่วไป</option>
+      </select>
+      <span style="font-size:12px;color:var(--ink-faint)" class="ml-auto">${list.length} คน</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table>
+        <thead><tr>
+          <th>ชื่อ</th><th>ประเภท</th><th>ที่อยู่</th><th>เข้าร่วมเมื่อ</th><th>จำนวนการจอง</th><th>ใช้งานล่าสุด</th>
+        </tr></thead>
+        <tbody>
+          ${list.map(u=>`
+            <tr>
+              <td>${u.name}</td>
+              <td>${u.resident ? `<span class="chip" style="background:var(--brand-dim);color:var(--brand)">${icon("badge-check",11)}ลูกบ้าน</span>` : `<span class="chip" style="background:var(--surface-hover);color:var(--ink-dim)">ลูกค้าทั่วไป</span>`}</td>
+              <td style="color:var(--ink-dim)">${u.place}</td>
+              <td style="color:var(--ink-faint);font-size:12px">${u.joined}</td>
+              <td class="tabnum">${u.bookings}</td>
+              <td style="color:var(--ink-faint);font-size:12px">${u.lastActive}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* ============================= DRAWER ============================= */
+function drawer(){
+  if(!state.drawer) return "";
+  const closeBtn = `<button data-close-drawer class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--surface-hover)">${icon("x",15)}</button>`;
+
+  if(state.drawer.kind==="booking"){
+    const b = rawBookings.find(x=>x.ref===state.drawer.ref);
+    if(!b) return "";
+    const u = userById(b.userId);
+    const c = CATS[b.cat];
+    return `
+    <div class="fixed inset-0 z-30 flex justify-end" data-drawer-overlay>
+      <div class="absolute inset-0" style="background:rgba(0,0,0,.5)" data-close-drawer></div>
+      <div class="relative w-[380px] h-full p-6 flex flex-col gap-5 overflow-y-auto" style="background:var(--surface);border-left:1px solid var(--border-soft)">
+        <div class="flex items-center justify-between">
+          <p class="disp font-semibold" style="font-size:16px">รายละเอียดการจอง</p>
+          ${closeBtn}
+        </div>
+        <div class="card p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:${toneDim(c.tone)};color:${tone(c.tone)}">${icon(c.icon,18)}</div>
+          <div><p class="disp font-semibold" style="font-size:14px">${c.label}</p><p class="tabnum" style="font-size:11.5px;color:var(--ink-faint)">${b.ref}</p></div>
+          <div class="ml-auto">${statusChip(b.status)}</div>
+        </div>
+        <div class="flex flex-col gap-3" style="font-size:13px">
+          <div class="flex justify-between"><span style="color:var(--ink-faint)">ลูกค้า</span><span>${u.name}</span></div>
+          <div class="flex justify-between"><span style="color:var(--ink-faint)">ประเภทลูกค้า</span><span>${u.resident?"ลูกบ้าน Ornsirin":"ลูกค้าทั่วไป"}</span></div>
+          <div class="flex justify-between"><span style="color:var(--ink-faint)">ที่อยู่</span><span class="text-right">${u.place}</span></div>
+          <div class="flex justify-between"><span style="color:var(--ink-faint)">ผู้ให้บริการ</span><span>${b.provider}</span></div>
+          <div class="flex justify-between"><span style="color:var(--ink-faint)">เวลาที่จอง</span><span class="tabnum">${fmtDate(b.at)}</span></div>
+          <div class="flex justify-between"><span style="color:var(--ink-faint)">ส่วนลดลูกบ้าน</span><span>${b.discount?"ใช้สิทธิ์ 15%":"ไม่ใช้สิทธิ์"}</span></div>
+          <div class="flex justify-between pt-3" style="border-top:1px solid var(--border-soft)"><span style="color:var(--ink-faint)">ยอดชำระ</span><span class="disp font-semibold" style="font-size:15px">${b.amount?fmtBaht(b.amount):"ฟรี (สิทธิ์ลูกบ้าน)"}</span></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if(state.drawer.kind==="partner"){
+    const p = partners.find(x=>x.id===state.drawer.id);
+    if(!p) return "";
+    const jobs = rawBookings.filter(b=>b.provider===p.name).sort((a,b)=>b.at-a.at).slice(0,6);
+    return `
+    <div class="fixed inset-0 z-30 flex justify-end" data-drawer-overlay>
+      <div class="absolute inset-0" style="background:rgba(0,0,0,.5)" data-close-drawer></div>
+      <div class="relative w-[380px] h-full p-6 flex flex-col gap-5 overflow-y-auto" style="background:var(--surface);border-left:1px solid var(--border-soft)">
+        <div class="flex items-center justify-between">
+          <p class="disp font-semibold" style="font-size:16px">โปรไฟล์ผู้ให้บริการ</p>
+          ${closeBtn}
+        </div>
+        <div class="card p-4 flex items-center gap-3">
+          <div class="w-11 h-11 rounded-full flex items-center justify-center disp font-semibold" style="background:var(--surface-hover)">${p.name.slice(0,1)}</div>
+          <div><p class="disp font-semibold" style="font-size:14px">${p.name}</p><p style="font-size:11.5px;color:var(--ink-faint)">${p.role}</p></div>
+        </div>
+        <div class="flex gap-2">
+          ${["avail","busy","off"].map(s=>`
+            <button data-set-partner-status="${s}" class="flex-1 py-2 rounded-lg text-center" style="font-size:11.5px;border:1px solid ${state.drawer.id===p.id&&p.status===s?tone({avail:"brand",busy:"blue",off:"red"}[s]):"var(--border)"};background:${p.status===s?toneDim({avail:"brand",busy:"blue",off:"red"}[s]):"transparent"};color:${p.status===s?tone({avail:"brand",busy:"blue",off:"red"}[s]):"var(--ink-dim)"}">
+              ${s==="avail"?"พร้อมงาน":s==="busy"?"กำลังให้บริการ":"ไม่พร้อม"}
+            </button>`).join("")}
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="card p-3 text-center"><p class="disp font-semibold" style="font-size:18px">${p.rating}</p><p style="font-size:11px;color:var(--ink-faint)">คะแนนเฉลี่ย</p></div>
+          <div class="card p-3 text-center"><p class="disp font-semibold" style="font-size:18px">${p.jobsToday}</p><p style="font-size:11px;color:var(--ink-faint)">งานวันนี้</p></div>
+        </div>
+        <div>
+          <p style="font-size:12px;color:var(--ink-faint)" class="mb-2">ประวัติงานล่าสุด</p>
+          <div class="flex flex-col gap-2">
+            ${jobs.length ? jobs.map(j=>`
+              <div class="flex items-center justify-between p-2.5 rounded-lg" style="background:var(--surface)">
+                <span style="font-size:12.5px">${userById(j.userId).name}</span>
+                <span style="font-size:11px;color:var(--ink-faint)">${fmtDate(j.at)}</span>
+              </div>`).join("") : `<p style="font-size:12px;color:var(--ink-faint)">ไม่มีประวัติ</p>`}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  return "";
+}
+
+/* ============================= ROOT RENDER ============================= */
+function sectionBody(){
+  if(state.section==="overview") return overviewSection();
+  if(state.section==="bookings") return bookingsSection();
+  if(state.section==="partners") return partnersSection();
+  if(state.section==="customers") return customersSection();
+  return "";
+}
+
+function render(){
+  const app = document.getElementById("app");
+  app.innerHTML = `
+  <div class="flex">
+    ${sidebar()}
+    <main class="flex-1 min-w-0">
+      ${topbar()}
+      <div class="p-7">${sectionBody()}</div>
+    </main>
+  </div>
+  ${drawer()}`;
+  if(window.lucide) lucide.createIcons();
+  bindEvents();
+}
+
+function bindEvents(){
+  document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",()=>setState({section:el.dataset.nav, drawer:null})));
+
+  const bs = document.getElementById("bookingSearchInput");
+  if(bs){ bs.addEventListener("input", e=>{ state.bookingSearch = e.target.value; renderKeepFocus(bs); }); }
+  const bc = document.getElementById("bookingCatSelect");
+  if(bc){ bc.addEventListener("change", e=>setState({bookingCat:e.target.value})); }
+  const bst = document.getElementById("bookingStatusSelect");
+  if(bst){ bst.addEventListener("change", e=>setState({bookingStatus:e.target.value})); }
+
+  const us = document.getElementById("userSearchInput");
+  if(us){ us.addEventListener("input", e=>{ state.userSearch = e.target.value; renderKeepFocus(us); }); }
+  const uf = document.getElementById("userFilterSelect");
+  if(uf){ uf.addEventListener("change", e=>setState({userFilter:e.target.value})); }
+
+  document.querySelectorAll("[data-open-booking]").forEach(el=>el.addEventListener("click",()=>setState({drawer:{kind:"booking",ref:el.dataset.openBooking}})));
+  document.querySelectorAll("[data-open-partner]").forEach(el=>el.addEventListener("click",()=>setState({drawer:{kind:"partner",id:el.dataset.openPartner}})));
+  document.querySelectorAll("[data-close-drawer]").forEach(el=>el.addEventListener("click",()=>setState({drawer:null})));
+  document.querySelectorAll("[data-set-partner-status]").forEach(el=>el.addEventListener("click",()=>{
+    const p = partners.find(x=>x.id===state.drawer.id);
+    if(p){ p.status = el.dataset.setPartnerStatus; render(); }
+  }));
+}
+
+/* keep caret position/focus while re-rendering on every keystroke in search inputs */
+function renderKeepFocus(inputEl){
+  const id = inputEl.id, pos = inputEl.selectionStart;
+  render();
+  const el = document.getElementById(id);
+  if(el){ el.focus(); el.setSelectionRange(pos,pos); }
+}
+
+render();
+</script>
+</body>
+</html>

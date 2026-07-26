@@ -8,6 +8,8 @@
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root{
   --bg:#0F1512; --surface:#161E19; --surface-2:#1C2620; --surface-hover:#233026;
@@ -169,6 +171,28 @@ const rawBookings = [
   ref, userId, cat, provider, status, amount, discount, at: daysAgo(dOffset,h,m)
 }));
 
+/* ============================= AUTH (Firebase Authentication) ============================= */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAzFD4Yl_VbnH91yYnHtsIqzhjPa1tbRHw",
+  authDomain: "cmcc-web-auth.firebaseapp.com",
+  projectId: "cmcc-web-auth",
+  storageBucket: "cmcc-web-auth.firebasestorage.app",
+  messagingSenderId: "636869110080",
+  appId: "1:636869110080:web:ae569c4f3ca5cec0f032a5",
+  measurementId: "G-7X15EL341W",
+};
+firebase.initializeApp(firebaseConfig);
+
+function authenticate(email, password){
+  return firebase.auth().signInWithEmailAndPassword(email, password)
+    .then(()=>({ ok:true }))
+    .catch(()=>({ ok:false, error:"อีเมลหรือรหัสผ่านไม่ถูกต้อง" }));
+}
+
+// ค่าปัจจุบันของผู้ใช้ที่ล็อกอินอยู่จะถูกเซ็ตโดย onAuthStateChanged ด้านล่าง (ใกล้ๆ ท้ายไฟล์)
+// ซึ่งจะคง session ไว้ให้อัตโนมัติแม้รีเฟรชหน้า — ไม่ต้องเขียนจัดการ session เอง
+
 function userById(id){ return users.find(u=>u.id===id); }
 function fmtBaht(n){ return "฿"+n.toLocaleString(); }
 function fmtDate(d){ return d.toLocaleDateString("th-TH",{day:"numeric",month:"short"}) + " · " + d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}); }
@@ -181,6 +205,7 @@ const state = {
   bookingSearch:"", bookingCat:"all", bookingStatus:"all",
   userSearch:"", userFilter:"all",
   drawer:null, // { kind:'booking', ref } | { kind:'partner', id }
+  auth:{ loggedIn:false, user:null, loading:false, error:"" },
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }
@@ -225,6 +250,44 @@ function partnerStatusChip(s){
   const map = { avail:{label:"พร้อมรับงาน",tone:"brand"}, busy:{label:"กำลังให้บริการ",tone:"blue"}, off:{label:"ไม่พร้อม",tone:"red"} };
   const cfg = map[s];
   return `<span class="chip" style="background:${toneDim(cfg.tone)};color:${tone(cfg.tone)}"><span class="led" style="background:${tone(cfg.tone)};box-shadow:none"></span>${cfg.label}</span>`;
+}
+
+/* ============================= LOGIN SCREEN ============================= */
+function loginScreen(){
+  const { loading, error } = state.auth;
+  return `
+  <div class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-[380px]">
+      <div class="flex flex-col items-center gap-2 mb-7">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:var(--brand-dim)">
+          ${icon("shield-half",22,"")}
+        </div>
+        <p class="disp font-semibold" style="font-size:17px">ORNSIRIN OPS</p>
+        <p style="font-size:12px;color:var(--ink-faint)">เข้าสู่ระบบสำหรับแอดมิน</p>
+      </div>
+
+      <form id="loginForm" class="card p-6 flex flex-col gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label style="font-size:12px;color:var(--ink-dim)">อีเมล</label>
+          <input type="text" id="loginEmail" placeholder="admin@ornsirin.com" autocomplete="username" style="width:100%" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label style="font-size:12px;color:var(--ink-dim)">รหัสผ่าน</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" style="width:100%" />
+        </div>
+
+        ${error ? `<p style="font-size:12px;color:var(--red)" class="flex items-center gap-1.5">${icon("triangle-alert",13)}${error}</p>` : ""}
+
+        <button type="submit" ${loading?"disabled":""} class="w-full py-2.5 rounded-lg disp font-semibold flex items-center justify-center gap-2" style="background:var(--brand);color:#0F1512;font-size:13.5px;opacity:${loading?0.7:1}">
+          ${loading ? `${icon("loader-circle",15,"animate-spin")} กำลังเข้าสู่ระบบ...` : "เข้าสู่ระบบ"}
+        </button>
+      </form>
+
+      <p class="text-center mt-5" style="font-size:11px;color:var(--ink-faint)">
+        เข้าสู่ระบบด้วยบัญชีแอดมินที่สร้างไว้ใน Firebase Authentication ของโครงการ cmcc-web-auth
+      </p>
+    </div>
+  </div>`;
 }
 
 /* ============================= LAYOUT PIECES ============================= */
@@ -277,7 +340,10 @@ function topbar(){
       <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:var(--brand-dim);color:var(--brand);font-size:11.5px;font-weight:600">
         <span class="led led-brand pulse"></span> LIVE
       </div>
-      <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold disp" style="background:var(--surface-2);border:1px solid var(--border);font-size:12px">อด</div>
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center font-semibold disp" style="background:var(--surface-2);border:1px solid var(--border);font-size:12px" title="${state.auth.user ? state.auth.user.name : ""}">${state.auth.user ? state.auth.user.name.slice(0,1) : "อ"}</div>
+        <button data-logout class="w-8 h-8 rounded-full flex items-center justify-center" style="background:var(--surface-2);border:1px solid var(--border);color:var(--ink-dim)" title="ออกจากระบบ">${icon("log-out",14)}</button>
+      </div>
     </div>
   </header>`;
 }
@@ -610,6 +676,12 @@ function sectionBody(){
 
 function render(){
   const app = document.getElementById("app");
+  if(!state.auth.loggedIn){
+    app.innerHTML = loginScreen();
+    if(window.lucide) lucide.createIcons();
+    bindLoginEvents();
+    return;
+  }
   app.innerHTML = `
   <div class="flex">
     ${sidebar()}
@@ -623,7 +695,33 @@ function render(){
   bindEvents();
 }
 
+function bindLoginEvents(){
+  const form = document.getElementById("loginForm");
+  if(form){
+    form.addEventListener("submit", e=>{ e.preventDefault(); handleLogin(); });
+  }
+}
+
+async function handleLogin(){
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  if(!email || !password){ state.auth.error = "กรุณากรอกอีเมลและรหัสผ่าน"; render(); return; }
+  state.auth.loading = true; state.auth.error = ""; render();
+  const result = await authenticate(email, password);
+  // เมื่อสำเร็จ ไม่ต้องเซ็ต state เอง — onAuthStateChanged ด้านล่างจะรับช่วงต่อและ render ให้
+  if(!result.ok){
+    state.auth.loading = false; state.auth.error = result.error;
+    render();
+  }
+}
+
+function handleLogout(){
+  firebase.auth().signOut();
+  // onAuthStateChanged ด้านล่างจะรับช่วง set state.auth.loggedIn = false และ render ให้เอง
+}
+
 function bindEvents(){
+  document.querySelectorAll("[data-logout]").forEach(el=>el.addEventListener("click", handleLogout));
   document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",()=>setState({section:el.dataset.nav, drawer:null})));
 
   const bs = document.getElementById("bookingSearchInput");
@@ -655,7 +753,15 @@ function renderKeepFocus(inputEl){
   if(el){ el.focus(); el.setSelectionRange(pos,pos); }
 }
 
-render();
+firebase.auth().onAuthStateChanged(user=>{
+  if(user){
+    state.auth = { loggedIn:true, user:{ name:user.displayName || user.email, email:user.email }, loading:false, error:"" };
+  } else {
+    state.auth = { loggedIn:false, user:null, loading:false, error:"" };
+    state.section = "overview"; state.drawer = null;
+  }
+  render();
+});
 </script>
 </body>
 </html>
